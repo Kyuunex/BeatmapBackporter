@@ -17,6 +17,7 @@ converted mapsets have a version of 5, and all mapsets 5 or lower are not gonna 
 so, it's not possible to run this twice and break an already converted set.  
 you can run this on your whole songs folder after you add stuff time to time if you want basically  
 all conversions overwrite the current .osu files  
+**for now, this does not convert 3 point perfect curve sliders that were added in game in 2012**
 
 ## example use on windows:
 
