@@ -5,9 +5,12 @@ import sys
 
 class Beatmap:
     def __init__(self, file_path):
-        self.file = open(file_path, "r+")
+        self.file_path = file_path
 
-        # sections
+        with open(self.file_path, "r") as read_file:
+            self.file_lines = read_file.readlines()
+
+            # sections
         self.osu_file_format_version = 0
         self.general_section = {}
         self.editor_section = []
@@ -23,7 +26,7 @@ class Beatmap:
     def parse(self):
         current_section = ""
 
-        for line in self.file.readlines():
+        for line in self.file_lines:
             if "osu file format v" in line:
                 self.osu_file_format_version = int(line.replace("osu file format v", "")
                                                    .replace("\ufeff", "").replace("\x7f", "").strip())
@@ -78,7 +81,7 @@ class Beatmap:
             elif current_section == "[Colours]":
                 self.colours_section.append(line)
             elif current_section == "[HitObjects]":
-                self.hit_objects_section.append(line)
+                self.hit_objects_section.append(line.split(","))
 
     def save_file(self, save_file=None):
         output_buffer = f"osu file format v{str(self.osu_file_format_version)}"
@@ -138,20 +141,18 @@ class Beatmap:
         output_buffer += "[HitObjects]"
         output_buffer += "\n"
         for hit_objects_line in self.hit_objects_section:
-            output_buffer += hit_objects_line
+            output_buffer += ",".join(hit_objects_line)
             output_buffer += "\n"
         output_buffer += "\n"
 
-        if save_file:
-            output_file = open(save_file, "w")
-            output_file.write(output_buffer)
-            output_file.close()
-        else:
-            self.file.seek(0)
-            self.file.write(output_buffer)
-            self.file.truncate()
-            self.file.close()
-        print("File saved!")
+        if not save_file:
+            save_file = self.file_path
+
+        output_file = open(save_file, "w")
+        output_file.write(output_buffer)
+        output_file.close()
+
+        return True
 
 
 class BeatmapBackporter(Beatmap):
@@ -172,6 +173,17 @@ class BeatmapBackporter(Beatmap):
                                           sample_index, volume, "1", effects])
 
         self.timing_points_section = new_timing_points
+
+    def convert_claps_to_finishes(self):
+        new_hit_objects = []
+        for current_hit_object in self.hit_objects_section:
+            if "8" in str(current_hit_object[4]):
+                # clap
+                current_hit_object[4] = current_hit_object[4].replace("8", "4")
+
+            new_hit_objects.append(current_hit_object)
+
+        self.hit_objects_section = new_hit_objects
 
     def convert_diff_settings(self):
         new_difficulty_settings = {}
@@ -235,9 +247,10 @@ def convert(file_to_convert):
         a.convert_diff_settings()
         a.fix_max_sv()
         a.fix_nonexistant_drum_sample()
+        # a.convert_claps_to_finishes()
         a.osu_file_format_version = 5
-        a.save_file()
-        print("saved")
+        if a.save_file():
+            print("saved")
     else:
         print("skipped because already compatible")
 
